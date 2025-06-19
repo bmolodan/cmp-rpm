@@ -6,8 +6,11 @@ def extract_sizes(path):
     sizes = {}
     with rpmfile.open(path) as rpm:
         for member in rpm.getmembers():
-            # Skip directories
-            if getattr(member, "isdir", lambda: False)():
+            # Skip directory entries. `isdir` can be a property or a method
+            is_dir = getattr(member, "isdir", False)
+            if callable(is_dir):
+                is_dir = is_dir()
+            if is_dir:
                 continue
             sizes[member.name] = member.size
     return sizes
