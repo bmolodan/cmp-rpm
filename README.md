@@ -1,10 +1,10 @@
 # RPM File Size Comparator
 
-A Python utility for comparing file sizes within two RPM packages built for different architectures.
+A Python utility to compare file sizes inside two RPM packages built for different architectures.
 
 ## 📦 Purpose
 
-This tool helps developers and maintainers identify differences in file sizes between two RPM packages compiled for different target architectures — for example, ARM vs RISC-V. It is especially useful for analyzing how architectural differences affect binary size and disk usage.
+This tool helps identify differences in file sizes between two RPM packages compiled for different target architectures — for example, ARM vs RISC-V. It is useful for analyzing how architectural differences affect binary size and disk usage.
 
 ## 🔧 Features
 
@@ -14,13 +14,22 @@ This tool helps developers and maintainers identify differences in file sizes be
   - File paths
   - Size in Package A
   - Size in Package B
-  - Size difference (in bytes and percentage)
+  - Size difference in bytes and percentage
 
 ## 🧠 Use Case
 
-Typical use case: analyzing size regressions or improvements when recompiling the same package for different platforms.
+Use this tool to analyze size regressions or improvements when recompiling the same package for different platforms.
 
 ## 🛠️ Example
 
 ```bash
 python compare_rpm_sizes.py ./package-arm.rpm ./package-riscv.rpm
+```
+
+## Requirements
+
+Python 3. Install dependencies using `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
