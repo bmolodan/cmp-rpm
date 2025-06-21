@@ -4,19 +4,37 @@ import os
 import rpmfile
 
 
-def normalize_lib_paths(path):
-    """Normalize lib directories so /lib64 and /usr/lib64 map to /lib and
-    /usr/lib respectively. This helps compare 32-bit and 64-bit packages.
+def normalize_lib_paths(path: str) -> str:
+    """Normalize lib directories so ``lib64`` and ``usr/lib64`` map to ``lib``
+    and ``usr/lib`` respectively.
+
+    The function preserves whether the original path was absolute. A leading
+    ``/`` (if present) is removed before applying the replacements and added
+    back to the normalized path when returning.
     """
+
+    # Remember if the path started with a slash and strip it for the
+    # normalization logic.
+    was_absolute = path.startswith("/")
+    if was_absolute:
+        path = path[1:]
+
     replacements = [
-        ("/lib64/", "/lib/"),
-        ("/lib32/", "/lib/"),
-        ("/usr/lib64/", "/usr/lib/"),
-        ("/usr/lib32/", "/usr/lib/"),
+        ("lib64/", "lib/"),
+        ("lib32/", "lib/"),
+        ("usr/lib64/", "usr/lib/"),
+        ("usr/lib32/", "usr/lib/"),
     ]
+
     for old, new in replacements:
         if path.startswith(old):
             path = new + path[len(old):]
+            break
+
+    # Re-apply the leading slash if the original path was absolute.
+    if was_absolute:
+        path = "/" + path
+
     return path
 
 
