@@ -4,7 +4,23 @@ import os
 import rpmfile
 
 
-def extract_sizes(path):
+def normalize_lib_paths(path):
+    """Normalize lib directories so /lib64 and /usr/lib64 map to /lib and
+    /usr/lib respectively. This helps compare 32-bit and 64-bit packages.
+    """
+    replacements = [
+        ("/lib64/", "/lib/"),
+        ("/lib32/", "/lib/"),
+        ("/usr/lib64/", "/usr/lib/"),
+        ("/usr/lib32/", "/usr/lib/"),
+    ]
+    for old, new in replacements:
+        if path.startswith(old):
+            path = new + path[len(old):]
+    return path
+
+
+def extract_sizes(path, normalize=None):
     sizes = {}
     with rpmfile.open(path) as rpm:
         for member in rpm.getmembers():
@@ -14,13 +30,17 @@ def extract_sizes(path):
                 is_dir = is_dir()
             if is_dir:
                 continue
-            sizes[member.name] = member.size
+            name = member.name
+            if normalize:
+                name = normalize(name)
+            sizes[name] = member.size
     return sizes
 
 
-def compare_rpms(path_a, path_b, csv_path=None):
-    sizes_a = extract_sizes(path_a)
-    sizes_b = extract_sizes(path_b)
+def compare_rpms(path_a, path_b, csv_path=None, normalize=False):
+    norm = normalize_lib_paths if normalize else None
+    sizes_a = extract_sizes(path_a, normalize=norm)
+    sizes_b = extract_sizes(path_b, normalize=norm)
     files = sorted(set(sizes_a) | set(sizes_b))
 
     csv_file = None
@@ -52,13 +72,15 @@ def main():
     parser.add_argument('rpm_b', help='Second RPM package to compare')
     parser.add_argument('--csv', nargs='?', metavar='FILE', const='',
                         help='Save results to CSV. If FILE not provided, uses <rpm_a> name with .csv')
+    parser.add_argument('--64', dest='arch64', action='store_true',
+                        help='Normalize lib paths for comparing 32-bit vs 64-bit packages')
     args = parser.parse_args()
 
     csv_path = None
     if args.csv is not None:
         csv_path = args.csv or os.path.splitext(args.rpm_a)[0] + '.csv'
 
-    compare_rpms(args.rpm_a, args.rpm_b, csv_path)
+    compare_rpms(args.rpm_a, args.rpm_b, csv_path, normalize=args.arch64)
 
 
 if __name__ == '__main__':

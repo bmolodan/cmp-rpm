@@ -16,6 +16,7 @@ This tool helps identify differences in file sizes between two RPM packages comp
   - Size in Package B
   - Size difference in bytes and percentage
 - Optionally save the table to a CSV file using the `--csv` flag
+- Use `--64` to normalize `/lib*` and `/usr/lib*` paths when comparing 32-bit and 64-bit packages
 
 ## 🧠 Use Case
 
@@ -24,7 +25,7 @@ Use this tool to analyze size regressions or improvements when recompiling the s
 ## 🛠️ Example
 
 ```bash
-python compare_rpm_sizes.py ./package-arm.rpm ./package-riscv.rpm --csv
+python compare_rpm_sizes.py ./package-32bit.rpm ./package-64bit.rpm --64 --csv
 ```
 
 ## Requirements
