@@ -2,6 +2,20 @@ import argparse
 import csv
 import os
 import rpmfile
+import magic
+
+
+_magic = magic.Magic(mime=False)
+
+
+def detect_file_type(data: bytes) -> str:
+    """Identify the file type using libmagic."""
+    if not data:
+        return "empty"
+    try:
+        return _magic.from_buffer(data)
+    except Exception:
+        return "unknown"
 
 
 def normalize_lib_paths(path: str) -> str:
@@ -22,8 +36,9 @@ def normalize_lib_paths(path: str) -> str:
     return path
 
 
-def extract_sizes(path, normalize=None):
-    sizes = {}
+def extract_info(path, normalize=None):
+    """Return a mapping of file path to (size, type)."""
+    info = {}
     with rpmfile.open(path) as rpm:
         for member in rpm.getmembers():
             # Skip directory entries. `isdir` can be a property or a method
@@ -35,33 +50,38 @@ def extract_sizes(path, normalize=None):
             name = member.name
             if normalize:
                 name = normalize(name)
-            sizes[name] = member.size
-    return sizes
+            with rpm.extractfile(member) as f:
+                header = f.read(2048)
+            info[name] = (member.size, detect_file_type(header))
+    return info
 
 
 def compare_rpms(path_a, path_b, csv_path=None, normalize=False):
     norm = normalize_lib_paths if normalize else None
-    sizes_a = extract_sizes(path_a, normalize=norm)
-    sizes_b = extract_sizes(path_b, normalize=norm)
-    files = sorted(set(sizes_a) | set(sizes_b))
+    info_a = extract_info(path_a, normalize=norm)
+    info_b = extract_info(path_b, normalize=norm)
+    files = sorted(set(info_a) | set(info_b))
 
     csv_file = None
     writer = None
     if csv_path:
         csv_file = open(csv_path, "w", newline="")
         writer = csv.writer(csv_file)
-        writer.writerow(["File", "Size A (bytes)", "Size B (bytes)", "Diff %"])
+        writer.writerow(["File", "Size A (bytes)", "Size B (bytes)", "Diff %", "Type"])
 
-    print(f"{'File':<50} {'Size A (bytes)':>15} {'Size B (bytes)':>15} {'Diff %':>8}")
+    print(f"{'File':<50} {'Size A (bytes)':>15} {'Size B (bytes)':>15} {'Diff %':>8} {'Type':<10}")
     for name in files:
-        size_a = sizes_a.get(name)
-        size_b = sizes_b.get(name)
-        if size_a is None or size_b is None:
+        info_a_entry = info_a.get(name)
+        info_b_entry = info_b.get(name)
+        if info_a_entry is None or info_b_entry is None:
             continue
+        size_a, type_a = info_a_entry
+        size_b, type_b = info_b_entry
         diff_percent = ((size_b - size_a) * 100.0 / size_a) if size_a else float('inf')
-        print(f"{name:<50} {size_a:>15} {size_b:>15} {diff_percent:>7.2f}%")
+        ftype = type_a if type_a == type_b else f"{type_a}/{type_b}"
+        print(f"{name:<50} {size_a:>15} {size_b:>15} {diff_percent:>7.2f}% {ftype:<10}")
         if writer:
-            writer.writerow([name, size_a, size_b, f"{diff_percent:.2f}%"]) 
+            writer.writerow([name, size_a, size_b, f"{diff_percent:.2f}%", ftype])
 
     if csv_file:
         csv_file.close()
