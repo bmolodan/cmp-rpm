@@ -1,4 +1,6 @@
 import argparse
+import csv
+import os
 import rpmfile
 
 
@@ -16,10 +18,17 @@ def extract_sizes(path):
     return sizes
 
 
-def compare_rpms(path_a, path_b):
+def compare_rpms(path_a, path_b, csv_path=None):
     sizes_a = extract_sizes(path_a)
     sizes_b = extract_sizes(path_b)
     files = sorted(set(sizes_a) | set(sizes_b))
+
+    csv_file = None
+    writer = None
+    if csv_path:
+        csv_file = open(csv_path, "w", newline="")
+        writer = csv.writer(csv_file)
+        writer.writerow(["File", "Size A (bytes)", "Size B (bytes)", "Diff %"])
 
     print(f"{'File':<50} {'Size A (bytes)':>15} {'Size B (bytes)':>15} {'Diff %':>8}")
     for name in files:
@@ -29,15 +38,27 @@ def compare_rpms(path_a, path_b):
             continue
         diff_percent = ((size_b - size_a) * 100.0 / size_a) if size_a else float('inf')
         print(f"{name:<50} {size_a:>15} {size_b:>15} {diff_percent:>7.2f}%")
+        if writer:
+            writer.writerow([name, size_a, size_b, f"{diff_percent:.2f}%"]) 
+
+    if csv_file:
+        csv_file.close()
+        print(f"\nResults saved to {csv_path}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Compare file sizes in two RPM packages")
     parser.add_argument('rpm_a', help='First RPM package (reference)')
     parser.add_argument('rpm_b', help='Second RPM package to compare')
+    parser.add_argument('--csv', nargs='?', metavar='FILE', const='',
+                        help='Save results to CSV. If FILE not provided, uses <rpm_a> name with .csv')
     args = parser.parse_args()
 
-    compare_rpms(args.rpm_a, args.rpm_b)
+    csv_path = None
+    if args.csv is not None:
+        csv_path = args.csv or os.path.splitext(args.rpm_a)[0] + '.csv'
+
+    compare_rpms(args.rpm_a, args.rpm_b, csv_path)
 
 
 if __name__ == '__main__':
