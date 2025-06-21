@@ -67,9 +67,11 @@ def compare_rpms(path_a, path_b, csv_path=None, normalize=False):
     if csv_path:
         csv_file = open(csv_path, "w", newline="")
         writer = csv.writer(csv_file)
-        writer.writerow(["File", "Size A (bytes)", "Size B (bytes)", "Diff %", "Type"])
+        writer.writerow(["File", "Size A (bytes)", "Size B (bytes)", "Diff %", "Type A", "Type B"])
 
-    print(f"{'File':<50} {'Size A (bytes)':>15} {'Size B (bytes)':>15} {'Diff %':>8} {'Type':<10}")
+    print(
+        f"{'File':<50} {'Size A (bytes)':>15} {'Size B (bytes)':>15} {'Diff %':>8} {'Type A':<15} {'Type B':<15}"
+    )
     for name in files:
         info_a_entry = info_a.get(name)
         info_b_entry = info_b.get(name)
@@ -78,10 +80,11 @@ def compare_rpms(path_a, path_b, csv_path=None, normalize=False):
         size_a, type_a = info_a_entry
         size_b, type_b = info_b_entry
         diff_percent = ((size_b - size_a) * 100.0 / size_a) if size_a else float('inf')
-        ftype = type_a if type_a == type_b else f"{type_a}/{type_b}"
-        print(f"{name:<50} {size_a:>15} {size_b:>15} {diff_percent:>7.2f}% {ftype:<10}")
+        print(
+            f"{name:<50} {size_a:>15} {size_b:>15} {diff_percent:>7.2f}% {type_a:<15} {type_b:<15}"
+        )
         if writer:
-            writer.writerow([name, size_a, size_b, f"{diff_percent:.2f}%", ftype])
+            writer.writerow([name, size_a, size_b, f"{diff_percent:.2f}%", type_a, type_b])
 
     if csv_file:
         csv_file.close()

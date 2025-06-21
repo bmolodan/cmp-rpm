@@ -15,7 +15,7 @@ This tool helps identify differences in file sizes between two RPM packages comp
   - Size in Package A
   - Size in Package B
   - Size difference in bytes and percentage
-  - File type detected via libmagic
+  - File type of each file in Package A and Package B detected via libmagic
 - Optionally save the table to a CSV file using the `--csv` flag
 - Use `--64` to normalize `/lib*` and `/usr/lib*` paths when comparing 32-bit and 64-bit packages
 
@@ -35,4 +35,9 @@ Python 3. Install dependencies using `requirements.txt`:
 
 ```bash
 pip install -r requirements.txt
+```
+On Debian/Ubuntu systems, install libmagic as well:
+
+```bash
+sudo apt-get install libmagic1
 ```
