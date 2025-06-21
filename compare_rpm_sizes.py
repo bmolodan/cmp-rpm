@@ -10,18 +10,15 @@ def normalize_lib_paths(path: str) -> str:
     RPM entries often begin with ``./``. Only those prefixes are handled and no
     attempt is made to deal with absolute paths.
     """
-
     replacements = [
         ("./lib64/", "./lib/"),
         ("./lib32/", "./lib/"),
         ("./usr/lib64/", "./usr/lib/"),
         ("./usr/lib32/", "./usr/lib/"),
     ]
-
     for old, new in replacements:
         if path.startswith(old):
             return new + path[len(old):]
-
     return path
 
 
