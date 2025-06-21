@@ -100,7 +100,7 @@ def compare_rpms(
     writer = None
     if csv_path:
         csv_file = open(csv_path, "w", newline="")
-        writer = csv.writer(csv_file, delimiter=';')
+        writer = csv.writer(csv_file, delimiter=';', quoting=csv.QUOTE_ALL)
         writer.writerow([
             "File",
             "Size A (KB)",
