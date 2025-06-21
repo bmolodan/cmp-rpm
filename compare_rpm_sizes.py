@@ -4,19 +4,24 @@ import os
 import rpmfile
 
 
-def normalize_lib_paths(path):
-    """Normalize lib directories so /lib64 and /usr/lib64 map to /lib and
-    /usr/lib respectively. This helps compare 32-bit and 64-bit packages.
+def normalize_lib_paths(path: str) -> str:
+    """Normalize library directory prefixes for RPM paths.
+
+    RPM entries often begin with ``./``. Only those prefixes are handled and no
+    attempt is made to deal with absolute paths.
     """
+
     replacements = [
-        ("/lib64/", "/lib/"),
-        ("/lib32/", "/lib/"),
-        ("/usr/lib64/", "/usr/lib/"),
-        ("/usr/lib32/", "/usr/lib/"),
+        ("./lib64/", "./lib/"),
+        ("./lib32/", "./lib/"),
+        ("./usr/lib64/", "./usr/lib/"),
+        ("./usr/lib32/", "./usr/lib/"),
     ]
+
     for old, new in replacements:
         if path.startswith(old):
-            path = new + path[len(old):]
+            return new + path[len(old):]
+
     return path
 
 
