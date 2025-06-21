@@ -1,2 +1,2 @@
-rpmfile
-zstandard
+rpmfile==2.1.0
+zstandard==0.23.0
