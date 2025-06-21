@@ -9,6 +9,8 @@ from compare_rpm_sizes import normalize_lib_paths
         ("usr/lib64/lib.so", "usr/lib/lib.so"),
         ("lib64/bar", "lib/bar"),
         ("/home/user/lib64/file", "/home/user/lib64/file"),
+        ("./usr/lib64/baz", "usr/lib/baz"),
+        ("./lib64/qux", "lib/qux"),
     ],
 )
 def test_normalize_lib_paths(src, expected):
