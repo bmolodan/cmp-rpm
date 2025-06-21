@@ -17,7 +17,7 @@ This tool helps identify differences in file sizes between two RPM packages comp
   - Size difference in KB and percentage
   - File type detected via libmagic for each package
 - Optionally save the table to a CSV file using the `--csv` flag
-  (semicolon `;` delimited)
+  (semicolon `;` delimited, all fields quoted)
 - Use `--64` to normalize `/lib*` and `/usr/lib*` paths when comparing 32-bit and 64-bit packages
 - Hide files with the same size using `--hide-equal`
 - Remove version suffixes from `.so` files with `--ignore-versions`
