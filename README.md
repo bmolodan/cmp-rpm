@@ -12,9 +12,9 @@ This tool helps identify differences in file sizes between two RPM packages comp
 - Extracts and lists file sizes from each package.
 - Outputs a comparison table with:
   - File paths
-  - Size in Package A (MB)
-  - Size in Package B (MB)
-  - Size difference in MB and percentage
+  - Size in Package A (KB)
+  - Size in Package B (KB)
+  - Size difference in KB and percentage
   - File type detected via libmagic for each package
 - Optionally save the table to a CSV file using the `--csv` flag
 - Use `--64` to normalize `/lib*` and `/usr/lib*` paths when comparing 32-bit and 64-bit packages

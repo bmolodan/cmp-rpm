@@ -73,8 +73,9 @@ def extract_info(path, normalize=None, ignore_links=False, ignore_versions=False
     return info
 
 
-def to_mb(size: int) -> float:
-    return size / (1024 * 1024)
+def to_kb(size: int) -> float:
+    """Convert bytes to kilobytes."""
+    return size / 1024
 
 
 def compare_rpms(
@@ -102,16 +103,16 @@ def compare_rpms(
         writer = csv.writer(csv_file)
         writer.writerow([
             "File",
-            "Size A (MB)",
-            "Size B (MB)",
-            "Diff (MB)",
+            "Size A (KB)",
+            "Size B (KB)",
+            "Diff (KB)",
             "Diff %",
             "Type A",
             "Type B",
         ])
 
     print(
-        f"{'File':<50} {'Size A (MB)':>12} {'Size B (MB)':>12} {'Diff (MB)':>12} {'Diff %':>8} {'Type A':<10} {'Type B':<10}"
+        f"{'File':<50} {'Size A (KB)':>12} {'Size B (KB)':>12} {'Diff (KB)':>12} {'Diff %':>8} {'Type A':<10} {'Type B':<10}"
     )
     total_a = total_b = 0
     for name in files:
@@ -125,39 +126,39 @@ def compare_rpms(
             continue
         total_a += size_a
         total_b += size_b
-        diff_mb = to_mb(size_b - size_a)
+        diff_kb = to_kb(size_b - size_a)
         diff_percent = ((size_b - size_a) * 100.0 / size_a) if size_a else float('inf')
-        sign = '+' if diff_mb > 0 else ''
+        sign = '+' if diff_kb > 0 else ''
         ftype_a = type_a
         ftype_b = type_b
         print(
-            f"{name:<50} {to_mb(size_a):>12.2f} {to_mb(size_b):>12.2f} {sign}{diff_mb:>11.2f} {sign}{diff_percent:>7.2f}% {ftype_a:<10} {ftype_b:<10}"
+            f"{name:<50} {to_kb(size_a):>12.2f} {to_kb(size_b):>12.2f} {sign}{diff_kb:>11.2f} {sign}{diff_percent:>7.2f}% {ftype_a:<10} {ftype_b:<10}"
         )
         if writer:
             writer.writerow(
                 [
                     name,
-                    f"{to_mb(size_a):.2f}",
-                    f"{to_mb(size_b):.2f}",
-                    f"{sign}{diff_mb:.2f}",
+                    f"{to_kb(size_a):.2f}",
+                    f"{to_kb(size_b):.2f}",
+                    f"{sign}{diff_kb:.2f}",
                     f"{sign}{diff_percent:.2f}%",
                     ftype_a,
                     ftype_b,
                 ]
             )
 
-    diff_total_mb = to_mb(total_b - total_a)
-    sign_total = '+' if diff_total_mb > 0 else ''
+    diff_total_kb = to_kb(total_b - total_a)
+    sign_total = '+' if diff_total_kb > 0 else ''
     print(
-        f"{'TOTAL':<50} {to_mb(total_a):>12.2f} {to_mb(total_b):>12.2f} {sign_total}{diff_total_mb:>11.2f} {sign_total}{((total_b - total_a) * 100.0 / total_a) if total_a else float('inf'):>7.2f}%"
+        f"{'TOTAL':<50} {to_kb(total_a):>12.2f} {to_kb(total_b):>12.2f} {sign_total}{diff_total_kb:>11.2f} {sign_total}{((total_b - total_a) * 100.0 / total_a) if total_a else float('inf'):>7.2f}%"
     )
     if writer:
         writer.writerow(
             [
                 'TOTAL',
-                f"{to_mb(total_a):.2f}",
-                f"{to_mb(total_b):.2f}",
-                f"{sign_total}{diff_total_mb:.2f}",
+                f"{to_kb(total_a):.2f}",
+                f"{to_kb(total_b):.2f}",
+                f"{sign_total}{diff_total_kb:.2f}",
                 f"{sign_total}{((total_b - total_a) * 100.0 / total_a) if total_a else float('inf'):.2f}%",
                 '',
                 '',
