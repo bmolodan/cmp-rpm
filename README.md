@@ -49,8 +49,26 @@ TOTAL                                                   1351.64      1155.68    
 
 ## Requirements
 
-Python 3. Install dependencies using `requirements.txt`:
+- Python 3.10+
+- `libmagic` system library (see install script below)
+
+## Installation
+
+Run the provided install script — it handles everything automatically:
 
 ```bash
-pip install -r requirements.txt
+bash install.sh
+```
+
+The script will:
+1. Check Python 3.10+ is available
+2. Install `libmagic` via `brew` / `apt` / `dnf` / `zypper` if missing
+3. Create a `venv/` virtual environment
+4. Install all Python dependencies from `requirements.txt`
+5. Run a smoke test to confirm everything works
+
+Then activate the environment before use:
+
+```bash
+source venv/bin/activate
 ```
