@@ -1,2 +1,7 @@
-venv
+venv/
 *.rpm
+__pycache__/
+*.pyc
+.DS_Store
+.pytest_cache/
+*.csv
