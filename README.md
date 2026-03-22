@@ -33,7 +33,9 @@ Use this tool to analyze size regressions or improvements when recompiling the s
 ## 🛠️ Example
 
 ```bash
-python compare_rpm_sizes.py ./package-32bit.rpm ./package-64bit.rpm --64 --csv
+./cmp-rpm ./package-32bit.rpm ./package-64bit.rpm
+./cmp-rpm ./package-32bit.rpm ./package-64bit.rpm --64 --csv
+./cmp-rpm ./package-32bit.rpm ./package-64bit.rpm --hide-equal --ignore-links
 ```
 
 Example output:
