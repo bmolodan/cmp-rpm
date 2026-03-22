@@ -2,8 +2,11 @@ import argparse
 import csv
 import os
 import re
+import sys
+
 import rpmfile
 import magic
+from rpmfile.errors import RPMError
 
 
 _magic = magic.Magic(mime=False)
@@ -45,7 +48,16 @@ def strip_version(path: str) -> str:
 def extract_info(path, normalize=None, ignore_links=False, ignore_versions=False):
     """Return a mapping of file path to (size, type)."""
     info = {}
-    with rpmfile.open(path) as rpm:
+    try:
+        rpm_context = rpmfile.open(path)
+    except FileNotFoundError:
+        sys.exit(f"Error: File not found: {path}")
+    except RPMError:
+        sys.exit(f"Error: Not a valid RPM file: {path}")
+    except OSError as e:
+        sys.exit(f"Error: I/O error reading {path}: {e}")
+
+    with rpm_context as rpm:
         link_map = set()
         if ignore_links:
             modes = rpm.headers.get("filemodes") or []
@@ -118,8 +130,27 @@ def compare_rpms(
     for name in files:
         info_a_entry = info_a.get(name)
         info_b_entry = info_b.get(name)
-        if info_a_entry is None or info_b_entry is None:
+
+        if info_a_entry is None:
+            size_b, type_b = info_b_entry
+            total_b += size_b
+            col_a = f"{'---':>12}"
+            col_b = f"{to_kb(size_b):>12.2f}"
+            print(f"{name:<50} {col_a} {col_b} {'---':>12} {'+new':>8} {'---':<10} {type_b:<10}")
+            if writer:
+                writer.writerow([name, "---", f"{to_kb(size_b):.2f}", "---", "+new", "---", type_b])
             continue
+
+        if info_b_entry is None:
+            size_a, type_a = info_a_entry
+            total_a += size_a
+            col_a = f"{to_kb(size_a):>12.2f}"
+            col_b = f"{'---':>12}"
+            print(f"{name:<50} {col_a} {col_b} {'---':>12} {'-removed':>8} {type_a:<10} {'---':<10}")
+            if writer:
+                writer.writerow([name, f"{to_kb(size_a):.2f}", "---", "---", "-removed", type_a, "---"])
+            continue
+
         size_a, type_a = info_a_entry
         size_b, type_b = info_b_entry
         if hide_equal and size_a == size_b:
@@ -127,12 +158,16 @@ def compare_rpms(
         total_a += size_a
         total_b += size_b
         diff_kb = to_kb(size_b - size_a)
-        diff_percent = ((size_b - size_a) * 100.0 / size_a) if size_a else float('inf')
         sign = '+' if diff_kb > 0 else ''
-        ftype_a = type_a
-        ftype_b = type_b
+        if size_a == 0:
+            diff_col = f"{'N/A':>8}"
+            diff_str = "N/A"
+        else:
+            diff_percent = (size_b - size_a) * 100.0 / size_a
+            diff_col = f"{sign}{diff_percent:>7.2f}%"
+            diff_str = f"{sign}{diff_percent:.2f}%"
         print(
-            f"{name:<50} {to_kb(size_a):>12.2f} {to_kb(size_b):>12.2f} {sign}{diff_kb:>11.2f} {sign}{diff_percent:>7.2f}% {ftype_a:<10} {ftype_b:<10}"
+            f"{name:<50} {to_kb(size_a):>12.2f} {to_kb(size_b):>12.2f} {sign}{diff_kb:>11.2f} {diff_col} {type_a:<10} {type_b:<10}"
         )
         if writer:
             writer.writerow(
@@ -141,16 +176,23 @@ def compare_rpms(
                     f"{to_kb(size_a):.2f}",
                     f"{to_kb(size_b):.2f}",
                     f"{sign}{diff_kb:.2f}",
-                    f"{sign}{diff_percent:.2f}%",
-                    ftype_a,
-                    ftype_b,
+                    diff_str,
+                    type_a,
+                    type_b,
                 ]
             )
 
     diff_total_kb = to_kb(total_b - total_a)
     sign_total = '+' if diff_total_kb > 0 else ''
+    if total_a == 0:
+        total_diff_col = f"{'N/A':>8}"
+        total_diff_str = "N/A"
+    else:
+        total_pct = (total_b - total_a) * 100.0 / total_a
+        total_diff_col = f"{sign_total}{total_pct:>7.2f}%"
+        total_diff_str = f"{sign_total}{total_pct:.2f}%"
     print(
-        f"{'TOTAL':<50} {to_kb(total_a):>12.2f} {to_kb(total_b):>12.2f} {sign_total}{diff_total_kb:>11.2f} {sign_total}{((total_b - total_a) * 100.0 / total_a) if total_a else float('inf'):>7.2f}%"
+        f"{'TOTAL':<50} {to_kb(total_a):>12.2f} {to_kb(total_b):>12.2f} {sign_total}{diff_total_kb:>11.2f} {total_diff_col}"
     )
     if writer:
         writer.writerow(
@@ -159,7 +201,7 @@ def compare_rpms(
                 f"{to_kb(total_a):.2f}",
                 f"{to_kb(total_b):.2f}",
                 f"{sign_total}{diff_total_kb:.2f}",
-                f"{sign_total}{((total_b - total_a) * 100.0 / total_a) if total_a else float('inf'):.2f}%",
+                total_diff_str,
                 '',
                 '',
             ]

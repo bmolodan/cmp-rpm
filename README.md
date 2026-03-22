@@ -14,8 +14,11 @@ This tool helps identify differences in file sizes between two RPM packages comp
   - File paths
   - Size in Package A (KB)
   - Size in Package B (KB)
-  - Size difference in KB and percentage
+  - Size difference in KB and percentage (shows `N/A` for zero-size files)
   - File type detected via libmagic for each package
+- Flags files unique to one package as `-removed` or `+new`
+- Prints a `TOTAL` summary row at the bottom
+- Exits with a clear error message for missing or invalid RPM files
 - Optionally save the table to a CSV file using the `--csv` flag
   (semicolon `;` delimited)
 - Use `--64` to normalize `/lib*` and `/usr/lib*` paths when comparing 32-bit and 64-bit packages
@@ -31,6 +34,17 @@ Use this tool to analyze size regressions or improvements when recompiling the s
 
 ```bash
 python compare_rpm_sizes.py ./package-32bit.rpm ./package-64bit.rpm --64 --csv
+```
+
+Example output:
+
+```
+File                                                 Size A (KB)  Size B (KB)    Diff (KB)   Diff % Type A     Type B
+./usr/bin/busybox                                       1282.60      1086.64      -195.96  -15.28% ELF 64...  ELF 64...
+./usr/share/licenses/busybox/LICENSE                      17.91        17.91         0.00    0.00% ASCII t... ASCII t...
+./usr/bin/only_in_a                                        4.00          ---          ---  -removed ELF 64...  ---
+./usr/bin/only_in_b                                         ---         8.00          ---      +new ---        ELF 64...
+TOTAL                                                   1351.64      1155.68      -195.96  -14.50%
 ```
 
 ## Requirements
