@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_PYTHON="$SCRIPT_DIR/venv/bin/python"
+
+if [[ ! -x "$VENV_PYTHON" ]]; then
+  echo "venv not found. Run: bash install.sh" >&2
+  exit 1
+fi
+
+exec "$VENV_PYTHON" "$SCRIPT_DIR/compare_rpm_sizes.py" "$@"

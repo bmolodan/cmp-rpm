@@ -67,8 +67,13 @@ The script will:
 4. Install all Python dependencies from `requirements.txt`
 5. Run a smoke test to confirm everything works
 
-Then activate the environment before use:
+After that you can run the tool in two ways:
 
 ```bash
+# Option A — wrapper script (no activation needed)
+./cmp-rpm <rpm_a> <rpm_b>
+
+# Option B — activate venv manually
 source venv/bin/activate
+python compare_rpm_sizes.py <rpm_a> <rpm_b>
 ```

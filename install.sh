@@ -67,6 +67,9 @@ ok "Smoke test passed"
 # ── done ────────────────────────────────────────────────────────────────────
 printf '\n'
 ok "Setup complete! Run the tool with:"
+printf '    ./cmp-rpm <rpm_a> <rpm_b>\n'
+printf '\n'
+printf '  Or activate the venv manually:\n'
 printf '    source venv/bin/activate\n'
 printf '    python compare_rpm_sizes.py <rpm_a> <rpm_b>\n'
 printf '\n'
