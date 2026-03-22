@@ -27,11 +27,14 @@ if ! check_libmagic; then
   if command -v brew &>/dev/null; then
     brew install libmagic
   elif command -v apt-get &>/dev/null; then
-    sudo apt-get install -y libmagic1
+    if [[ $EUID -eq 0 ]]; then apt-get install -y libmagic1
+    else sudo apt-get install -y libmagic1; fi
   elif command -v dnf &>/dev/null; then
-    sudo dnf install -y file-libs
+    if [[ $EUID -eq 0 ]]; then dnf install -y file-libs
+    else sudo dnf install -y file-libs; fi
   elif command -v zypper &>/dev/null; then
-    sudo zypper install -y libmagic1
+    if [[ $EUID -eq 0 ]]; then zypper install -y libmagic1
+    else sudo zypper install -y libmagic1; fi
   else
     die "Cannot install libmagic automatically. Install it manually and re-run."
   fi

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import re
 import sys
@@ -167,50 +168,156 @@ def _iter_rows(
     return rows
 
 
-def _report(rows: list[FileRow], csv_path: str | None) -> None:
-    """Print the comparison table and optionally write a CSV file."""
-    ctx = open(csv_path, "w", newline="") if csv_path else nullcontext()
-    with ctx as csv_file:
-        writer = csv.writer(csv_file, delimiter=';') if csv_path else None
-        if writer:
-            writer.writerow(["File", "Size A (KB)", "Size B (KB)", "Diff (KB)", "Diff %", "Type A", "Type B"])
+def _write_csv(rows: list[FileRow], csv_path: str) -> None:
+    """Write comparison rows to a semicolon-delimited CSV file."""
+    with open(csv_path, "w", newline="") as csv_file:
+        writer = csv.writer(csv_file, delimiter=';')
+        writer.writerow(["File", "Size A (KB)", "Size B (KB)", "Diff (KB)", "Diff %", "Type A", "Type B"])
+        for row in rows:
+            if row.size_a is None:
+                writer.writerow([row.name, ABSENT, f"{to_kb(row.size_b):.2f}", ABSENT, "+new", ABSENT, row.type_b])
+            elif row.size_b is None:
+                writer.writerow([row.name, f"{to_kb(row.size_a):.2f}", ABSENT, ABSENT, "-removed", row.type_a, ABSENT])
+            else:
+                sign, diff_kb, _, diff_pct_csv = _format_diff(row.size_a, row.size_b)
+                writer.writerow([
+                    row.name,
+                    f"{to_kb(row.size_a):.2f}",
+                    f"{to_kb(row.size_b):.2f}",
+                    f"{sign}{diff_kb:.2f}",
+                    diff_pct_csv,
+                    row.type_a,
+                    row.type_b,
+                ])
+        total_a = sum(r.size_a for r in rows if r.size_a is not None)
+        total_b = sum(r.size_b for r in rows if r.size_b is not None)
+        sign_t, diff_kb_t, _, diff_pct_csv_t = _format_diff(total_a, total_b)
+        writer.writerow([
+            "TOTAL",
+            f"{to_kb(total_a):.2f}",
+            f"{to_kb(total_b):.2f}",
+            f"{sign_t}{diff_kb_t:.2f}",
+            diff_pct_csv_t,
+            "", "",
+        ])
 
+
+def _report(
+    rows: list[FileRow],
+    csv_path: str | None,
+    quiet: bool = False,
+) -> tuple[int, int]:
+    """Print the comparison table and optionally write a CSV file.
+
+    Returns (total_a, total_b) in bytes for threshold evaluation.
+    """
+    if not quiet:
         print(
             f"{'File':<{COL_NAME}} {'Size A (KB)':>{COL_SIZE}} {'Size B (KB)':>{COL_SIZE}} "
             f"{'Diff (KB)':>{COL_DIFF}} {'Diff %':>{COL_PCT}} {'Type A':<{COL_TYPE}} {'Type B':<{COL_TYPE}}"
         )
 
-        total_a = total_b = 0
-        for row in rows:
-            if row.size_a is None:
-                total_b += row.size_b
-                _emit_row(writer, row.name, ABSENT, f"{to_kb(row.size_b):.2f}",
+    total_a = total_b = 0
+    for row in rows:
+        if row.size_a is None:
+            total_b += row.size_b
+            if not quiet:
+                _emit_row(None, row.name, ABSENT, f"{to_kb(row.size_b):.2f}",
                           ABSENT, f"{'+new':>{COL_PCT}}", ABSENT, row.type_b)
-            elif row.size_b is None:
-                total_a += row.size_a
-                _emit_row(writer, row.name, f"{to_kb(row.size_a):.2f}", ABSENT,
+        elif row.size_b is None:
+            total_a += row.size_a
+            if not quiet:
+                _emit_row(None, row.name, f"{to_kb(row.size_a):.2f}", ABSENT,
                           ABSENT, f"{'-removed':>{COL_PCT}}", row.type_a, ABSENT)
-            else:
-                total_a += row.size_a
-                total_b += row.size_b
-                sign, diff_kb, diff_pct_col, diff_pct_csv = _format_diff(row.size_a, row.size_b)
+        else:
+            total_a += row.size_a
+            total_b += row.size_b
+            sign, diff_kb, diff_pct_col, _ = _format_diff(row.size_a, row.size_b)
+            if not quiet:
                 _emit_row(
-                    writer, row.name,
+                    None, row.name,
                     f"{to_kb(row.size_a):.2f}", f"{to_kb(row.size_b):.2f}",
                     f"{sign}{diff_kb:.2f}", diff_pct_col,
                     row.type_a, row.type_b,
                 )
 
-        sign_t, diff_kb_t, diff_pct_col_t, diff_pct_csv_t = _format_diff(total_a, total_b)
-        _emit_row(
-            writer, "TOTAL",
-            f"{to_kb(total_a):.2f}", f"{to_kb(total_b):.2f}",
-            f"{sign_t}{diff_kb_t:.2f}", diff_pct_col_t,
-            "", "",
-        )
+    sign_t, diff_kb_t, diff_pct_col_t, _ = _format_diff(total_a, total_b)
+    _emit_row(
+        None, "TOTAL",
+        f"{to_kb(total_a):.2f}", f"{to_kb(total_b):.2f}",
+        f"{sign_t}{diff_kb_t:.2f}", diff_pct_col_t,
+        "", "",
+    )
 
     if csv_path:
+        _write_csv(rows, csv_path)
         print(f"\nResults saved to {csv_path}")
+
+    return total_a, total_b
+
+
+def _report_json(
+    rows: list[FileRow],
+    csv_path: str | None,
+) -> tuple[int, int]:
+    """Serialize comparison as JSON to stdout; optionally also write CSV.
+
+    Returns (total_a, total_b) in bytes for threshold evaluation.
+    """
+    total_a = total_b = 0
+    files = []
+    for row in rows:
+        if row.size_a is None:
+            total_b += row.size_b
+            size_a_kb = None
+            size_b_kb = round(to_kb(row.size_b), 2)
+            diff_kb = size_b_kb
+            diff_pct = None
+            status = "new"
+        elif row.size_b is None:
+            total_a += row.size_a
+            size_a_kb = round(to_kb(row.size_a), 2)
+            size_b_kb = None
+            diff_kb = round(-to_kb(row.size_a), 2)
+            diff_pct = -100.0
+            status = "removed"
+        else:
+            total_a += row.size_a
+            total_b += row.size_b
+            size_a_kb = round(to_kb(row.size_a), 2)
+            size_b_kb = round(to_kb(row.size_b), 2)
+            diff_kb = round(to_kb(row.size_b - row.size_a), 2)
+            diff_pct = round((row.size_b - row.size_a) * 100.0 / row.size_a, 2) if row.size_a != 0 else None
+            status = "equal" if row.size_a == row.size_b else "changed"
+        files.append({
+            "name": row.name,
+            "size_a_kb": size_a_kb,
+            "size_b_kb": size_b_kb,
+            "diff_kb": diff_kb,
+            "diff_pct": diff_pct,
+            "type_a": row.type_a,
+            "type_b": row.type_b,
+            "status": status,
+        })
+
+    total_diff_kb = round(to_kb(total_b - total_a), 2)
+    total_diff_pct = round((total_b - total_a) * 100.0 / total_a, 2) if total_a != 0 else None
+    output = {
+        "summary": {
+            "total_a_kb": round(to_kb(total_a), 2),
+            "total_b_kb": round(to_kb(total_b), 2),
+            "diff_kb": total_diff_kb,
+            "diff_pct": total_diff_pct,
+        },
+        "files": files,
+    }
+    print(json.dumps(output, indent=2))
+
+    if csv_path:
+        _write_csv(rows, csv_path)
+        print(f"\nResults saved to {csv_path}", file=sys.stderr)
+
+    return total_a, total_b
 
 
 def compare_rpms(
@@ -221,13 +328,20 @@ def compare_rpms(
     hide_equal: bool = False,
     ignore_versions: bool = False,
     ignore_links: bool = False,
-) -> None:
-    """Compare file sizes in two RPM packages and print a summary table."""
+    json_output: bool = False,
+    quiet: bool = False,
+) -> tuple[int, int]:
+    """Compare file sizes in two RPM packages and print a summary table.
+
+    Returns (total_a, total_b) in bytes for threshold evaluation.
+    """
     path_normalizer = normalize_lib_paths if normalize else None
     info_a = extract_info(path_a, normalize=path_normalizer, ignore_links=ignore_links, ignore_versions=ignore_versions)
     info_b = extract_info(path_b, normalize=path_normalizer, ignore_links=ignore_links, ignore_versions=ignore_versions)
     rows = _iter_rows(info_a, info_b, hide_equal)
-    _report(rows, csv_path)
+    if json_output:
+        return _report_json(rows, csv_path)
+    return _report(rows, csv_path, quiet=quiet)
 
 
 def main() -> None:
@@ -241,13 +355,19 @@ def main() -> None:
     parser.add_argument('--hide-equal', action='store_true', help='Hide files with identical sizes')
     parser.add_argument('--ignore-versions', action='store_true', help='Ignore version suffix in .so filenames')
     parser.add_argument('--ignore-links', action='store_true', help='Ignore symbolic links in RPMs')
+    parser.add_argument('--json', dest='json_output', action='store_true',
+                        help='Output results as JSON instead of ASCII table')
+    parser.add_argument('--quiet', action='store_true',
+                        help='Suppress per-file rows; print only TOTAL line')
+    parser.add_argument('--fail-threshold', type=float, metavar='N', default=None,
+                        help='Exit 1 if RPM B total size grew by more than N%% vs RPM A')
     args = parser.parse_args()
 
     csv_path = None
     if args.csv is not None:
         csv_path = args.csv or os.path.splitext(args.rpm_a)[0] + '.csv'
 
-    compare_rpms(
+    total_a, total_b = compare_rpms(
         args.rpm_a,
         args.rpm_b,
         csv_path,
@@ -255,7 +375,19 @@ def main() -> None:
         hide_equal=args.hide_equal,
         ignore_versions=args.ignore_versions,
         ignore_links=args.ignore_links,
+        json_output=args.json_output,
+        quiet=args.quiet,
     )
+
+    if args.fail_threshold is not None and total_a > 0:
+        actual_pct = (total_b - total_a) * 100.0 / total_a
+        if actual_pct > args.fail_threshold:
+            print(
+                f"FAIL: RPM B grew by {actual_pct:.2f}% "
+                f"(threshold: {args.fail_threshold:.2f}%)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
 
 if __name__ == '__main__':
